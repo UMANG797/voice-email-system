@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Welcome{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Voice-Based Email, for Everyone</h1>
+  <p class="hero-sub">
+    A fully spoken email experience. Register, log in, compose, and read your inbox —
+    all by voice, with large controls and full keyboard/screen-reader support as a fallback.
+  </p>
+  <div class="hero-actions">
+    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-large">Create Account</a>
+    <a href="{{ url_for('auth.login') }}" class="btn btn-secondary btn-large">Log In</a>
+  </div>
+  <button id="hero-speak" class="btn btn-ghost" type="button">🔊 Read this page aloud</button>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('hero-speak').addEventListener('click', function () {
+  VoiceMail.speak("Welcome to Voice Mail. A fully spoken email experience. Say or click Create Account to register, or Log In if you already have an account.");
+});
+window.addEventListener('DOMContentLoaded', function() {
+  VoiceMail.speak("Welcome to Voice Mail. Press Create Account to register, or Log In if you already have an account.");
+});
+</script>
+{% endblock %}

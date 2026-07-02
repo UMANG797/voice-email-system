@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<title>{% block title %}Voice Email{% endblock %} — Voice-Based Email System</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="theme-light">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <header class="app-header" role="banner">
+    <div class="brand">
+      <span class="brand-icon" aria-hidden="true">🎙️</span>
+      <span class="brand-name">VoiceMail</span>
+    </div>
+    <nav aria-label="Main navigation">
+      {% if session.get('user_id') %}
+        <span class="nav-user">Hi, {{ session.get('user_name') }}</span>
+        <a href="{{ url_for('auth.logout') }}" class="btn btn-ghost">Logout</a>
+      {% endif %}
+      <button id="theme-toggle" class="btn btn-ghost" aria-pressed="false" aria-label="Toggle dark mode">
+        🌙 Dark Mode
+      </button>
+    </nav>
+  </header>
+
+  <main id="main-content" role="main" tabindex="-1">
+    {% block content %}{% endblock %}
+  </main>
+
+  <div id="live-region" aria-live="polite" class="sr-only"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="{{ url_for('static', filename='js/voice.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

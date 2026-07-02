@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Inbox{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Inbox</h1>
+
+  <div class="inbox-toolbar">
+    <input type="search" id="search-box" placeholder="Search by sender, subject, or keyword" aria-label="Search email">
+    <button id="search-btn" class="btn btn-secondary">Search</button>
+    <button id="refresh-btn" class="btn btn-secondary">Refresh</button>
+    <button id="voice-inbox-btn" class="btn btn-primary">🎙️ Voice Commands</button>
+  </div>
+  <p id="voice-status" class="voice-status" aria-live="polite">
+    Say: "Read Next", "Repeat", "Delete Email", or "Go Back".
+  </p>
+
+  <div id="inbox-list" aria-live="polite"></div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let messages = [];
+let currentIndex = -1;
+
+async function loadInbox(query) {
+  const listEl = document.getElementById('inbox-list');
+  listEl.innerHTML = '<p class="muted">Loading your inbox…</p>';
+  const url = "{{ url_for('email_bp.api_inbox') }}" + (query ? ("?q=" + encodeURIComponent(query)) : "");
+  const data = await VoiceMailApp.apiFetch(url);
+  if (!data.ok) {
+    listEl.innerHTML = '<p class="banner banner-error">' + data.message + '</p>';
+    await VoiceMail.speak(data.message);
+    return;
+  }
+  messages = data.messages;
+  currentIndex = -1;
+  renderInbox();
+  if (messages.length === 0) {
+    await VoiceMail.speak("Your inbox is empty, or no results were found.");
+  } else {
+    await VoiceMail.speak(`You have ${messages.length} messages. Say Read Next to hear the first one.`);
+  }
+}
+
+function renderInbox() {
+  const listEl = document.getElementById('inbox-list');
+  if (messages.length === 0) {
+    listEl.innerHTML = '<p class="muted">No emails found.</p>';
+    return;
+  }
+  listEl.innerHTML = messages.map((m, i) => `
+    <article class="email-item ${i === currentIndex ? 'email-item-active' : ''}" tabindex="0">
+      <div class="email-meta">
+        <strong>${escapeHtml(m.from)}</strong>
+        <span class="email-date">${escapeHtml(m.date)}</span>
+      </div>
+      <div class="email-subject">${escapeHtml(m.subject)}</div>
+      <p class="email-preview">${escapeHtml(m.body.slice(0, 200))}${m.body.length > 200 ? '…' : ''}</p>
+      <button class="btn btn-ghost btn-small" onclick="deleteMessage('${m.id}')">Delete</button>
+    </article>
+  `).join('');
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str || "";
+  return div.innerHTML;
+}
+
+async function deleteMessage(id) {
+  const data = await VoiceMailApp.apiFetch("{{ url_for('email_bp.api_delete_email') }}", {
+    method: "POST",
+    body: JSON.stringify({ id: id }),
+  });
+  VoiceMailApp.showToast(data.message, !data.ok);
+  await VoiceMail.speak(data.message);
+  if (data.ok) {
+    messages = messages.filter(m => m.id !== id);
+    renderInbox();
+  }
+}
+
+document.getElementById('search-btn').addEventListener('click', function () {
+  loadInbox(document.getElementById('search-box').value.trim());
+});
+document.getElementById('refresh-btn').addEventListener('click', function () {
+  loadInbox();
+});
+document.getElementById('search-box').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') loadInbox(this.value.trim());
+});
+
+const statusEl = document.getElementById('voice-status');
+
+async function readCurrent() {
+  if (currentIndex < 0 || currentIndex >= messages.length) {
+    await VoiceMail.speak("There is no message selected. Say Read Next to start.");
+    return;
+  }
+  const m = messages[currentIndex];
+  renderInbox();
+  await VoiceMail.speak(`From ${m.from}. Subject: ${m.subject}. Message: ${m.body.slice(0, 800)}`);
+}
+
+document.getElementById('voice-inbox-btn').addEventListener('click', async function () {
+  if (!VoiceMail.isRecognitionSupported()) {
+    statusEl.textContent = "Voice commands aren't supported in this browser.";
+    await VoiceMail.speak(statusEl.textContent);
+    return;
+  }
+  statusEl.textContent = "Listening for a command…";
+  try {
+    const transcript = (await VoiceMail.listen({ timeoutMs: 8000 })).toLowerCase();
+    statusEl.textContent = 'Heard: "' + transcript + '"';
+
+    if (transcript.includes("read next") || transcript.includes("next")) {
+      currentIndex = Math.min(currentIndex + 1, messages.length - 1);
+      await readCurrent();
+    } else if (transcript.includes("repeat")) {
+      await readCurrent();
+    } else if (transcript.includes("delete")) {
+      if (currentIndex >= 0 && messages[currentIndex]) {
+        await VoiceMail.speak("Deleting this email.");
+        await deleteMessage(messages[currentIndex].id);
+      } else {
+        await VoiceMail.speak("No email is currently selected to delete.");
+      }
+    } else if (transcript.includes("go back")) {
+      window.location.href = "{{ url_for('dashboard') }}";
+    } else if (transcript.includes("stop")) {
+      VoiceMail.stopSpeaking();
+    } else if (transcript.includes("search")) {
+      const q = transcript.replace(/search( for)?/i, "").trim();
+      if (q) loadInbox(q);
+    } else {
+      await VoiceMail.speak('I didn\'t recognize that. Try Read Next, Repeat, Delete Email, or Go Back.');
+    }
+  } catch (err) {
+    statusEl.textContent = err.message;
+    await VoiceMail.speak(err.message);
+  }
+});
+
+window.addEventListener('DOMContentLoaded', function () {
+  loadInbox();
+});
+</script>
+{% endblock %}

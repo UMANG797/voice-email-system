@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Activity Log{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Activity Log</h1>
+  {% if logs|length == 0 %}
+    <p class="muted">No activity recorded yet.</p>
+  {% else %}
+    <table class="log-table">
+      <thead><tr><th>Time (UTC)</th><th>Action</th><th>Details</th></tr></thead>
+      <tbody>
+        {% for l in logs %}
+        <tr>
+          <td>{{ l['timestamp'] }}</td>
+          <td>{{ l['action'] }}</td>
+          <td>{{ l['details'] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+</section>
+{% endblock %}

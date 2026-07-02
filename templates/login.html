@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Log In{% endblock %}
+{% block content %}
+<section class="card form-card">
+  <h1>Log In</h1>
+  <p class="muted">Say your email and voice password, or type your password if voice login doesn't work.</p>
+
+  <button id="start-voice-login" class="btn btn-primary btn-large" type="button">🎙️ Log In by Voice</button>
+  <p id="voice-status" class="voice-status" aria-live="polite"></p>
+
+  <form id="login-form" novalidate>
+    <label for="email">Email Address</label>
+    <input type="email" id="email" name="email" required autocomplete="email">
+
+    <label for="voice_password">Voice Password (optional if using text password)</label>
+    <input type="text" id="voice_password" name="voice_password" autocomplete="off">
+
+    <label for="text_password">Account Password</label>
+    <input type="password" id="text_password" name="text_password" autocomplete="current-password">
+
+    <button type="submit" class="btn btn-primary btn-large">Log In</button>
+  </form>
+
+  <p class="muted">Don't have an account? <a href="{{ url_for('auth.register') }}">Register</a></p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const form = document.getElementById('login-form');
+const statusEl = document.getElementById('voice-status');
+
+async function submitLogin() {
+  const payload = {
+    email: document.getElementById('email').value,
+    voice_password: document.getElementById('voice_password').value,
+    text_password: document.getElementById('text_password').value,
+  };
+  const data = await VoiceMailApp.apiFetch("{{ url_for('auth.login') }}", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  if (data.ok) {
+    VoiceMailApp.showToast(data.message, false);
+    await VoiceMail.speak(data.message);
+    window.location.href = data.redirect;
+  } else {
+    VoiceMailApp.showToast(data.message, true);
+    await VoiceMail.speak(data.message);
+  }
+}
+
+form.addEventListener('submit', function (e) {
+  e.preventDefault();
+  submitLogin();
+});
+
+async function askAndListen(promptText, fieldId, opts) {
+  opts = opts || {};
+  statusEl.textContent = promptText;
+  await VoiceMail.speak(promptText);
+  try {
+    const transcript = await VoiceMail.listen({ timeoutMs: 9000 });
+    document.getElementById(fieldId).value = opts.transform ? opts.transform(transcript) : transcript;
+    statusEl.textContent = 'Heard: "' + transcript + '"';
+    await VoiceMail.speak('I heard: ' + transcript);
+    return transcript;
+  } catch (err) {
+    statusEl.textContent = err.message;
+    await VoiceMail.speak(err.message);
+    return null;
+  }
+}
+
+document.getElementById('start-voice-login').addEventListener('click', async function () {
+  if (!VoiceMail.isRecognitionSupported()) {
+    statusEl.textContent = "Voice input isn't supported in this browser. Please type your details below.";
+    await VoiceMail.speak(statusEl.textContent);
+    return;
+  }
+  await VoiceMail.speak("Let's log you in. What is your email address?");
+  await askAndListen("What is your email address?", "email",
+    { transform: (t) => t.replace(/\s+at\s+/gi, "@").replace(/\s+dot\s+/gi, ".").replace(/\s+/g, "") });
+  await askAndListen("Now say your voice password.", "voice_password");
+  statusEl.textContent = "Press Log In, or say nothing more and press the button.";
+  await VoiceMail.speak("Press Log In now.");
+});
+</script>
+{% endblock %}

@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Mail Settings{% endblock %}
+{% block content %}
+<section class="card form-card">
+  <h1>Mail Settings</h1>
+  <p class="muted">
+    To send and read real email, link a Gmail address and an
+    <a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener">App Password</a>
+    (not your normal Gmail password — Google requires a 16-character App Password for programs like this one,
+    and you must have 2-Step Verification turned on to generate it).
+  </p>
+
+  {% if mail_login_email %}
+  <div class="banner banner-success">Currently linked: {{ mail_login_email }}</div>
+  {% endif %}
+
+  <form id="settings-form" novalidate>
+    <label for="mail_email">Gmail Address</label>
+    <input type="email" id="mail_email" name="mail_email" required value="{{ mail_login_email or '' }}">
+
+    <label for="app_password">App Password</label>
+    <input type="password" id="app_password" name="app_password" required autocomplete="off"
+           aria-describedby="app-password-help">
+    <p id="app-password-help" class="hint">
+      This is encrypted before it's stored, and is only ever used to send/read your mail on your behalf.
+    </p>
+
+    <button type="submit" class="btn btn-primary btn-large">Save</button>
+  </form>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('settings-form').addEventListener('submit', async function (e) {
+  e.preventDefault();
+  const payload = {
+    mail_email: document.getElementById('mail_email').value,
+    app_password: document.getElementById('app_password').value,
+  };
+  console.log("Payload:", payload);
+  const data = await VoiceMailApp.apiFetch("{{ url_for('email_bp.mail_settings') }}", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  VoiceMailApp.showToast(data.message, !data.ok);
+  console.log("Response:", data);
+  await VoiceMail.speak(data.message);
+});
+</script>
+{% endblock %}

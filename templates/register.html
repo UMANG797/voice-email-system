@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Register{% endblock %}
+{% block content %}
+<section class="card form-card">
+  <h1>Create Your Account</h1>
+  <p class="muted">Press "Start Voice Registration" and speak each answer when asked, or fill the form manually below.</p>
+
+  <button id="start-voice-reg" class="btn btn-primary btn-large" type="button">🎙️ Start Voice Registration</button>
+  <p id="voice-status" class="voice-status" aria-live="polite"></p>
+
+  <form id="register-form" novalidate>
+    <label for="name">Full Name</label>
+    <input type="text" id="name" name="name" required autocomplete="name">
+
+    <label for="email">Email Address</label>
+    <input type="email" id="email" name="email" required autocomplete="email">
+
+    <label for="password">Account Password</label>
+    <input type="password" id="password" name="password" required autocomplete="new-password"
+           aria-describedby="password-help">
+    <p id="password-help" class="hint">At least 8 characters, with an uppercase letter, a lowercase letter, and a number.</p>
+
+    <label for="voice_password">Voice Password Phrase</label>
+    <input type="text" id="voice_password" name="voice_password" required
+           aria-describedby="voice-password-help">
+    <p id="voice-password-help" class="hint">
+      A spoken phrase you'll say to log in (e.g. "sunrise over the mountains"). This speeds up login but is
+      not a substitute for your real password — anyone who overhears it could repeat it, so don't use anything sensitive.
+    </p>
+
+    <button type="submit" class="btn btn-primary btn-large">Create Account</button>
+  </form>
+
+  <p class="muted">Already have an account? <a href="{{ url_for('auth.login') }}">Log in</a></p>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const form = document.getElementById('register-form');
+const statusEl = document.getElementById('voice-status');
+
+async function submitRegistration() {
+  const payload = {
+    name: document.getElementById('name').value,
+    email: document.getElementById('email').value,
+    password: document.getElementById('password').value,
+    voice_password: document.getElementById('voice_password').value,
+  };
+  const data = await VoiceMailApp.apiFetch("{{ url_for('auth.register') }}", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  if (data.ok) {
+    VoiceMailApp.showToast(data.message, false);
+    await VoiceMail.speak(data.message);
+    window.location.href = data.redirect;
+  } else {
+    VoiceMailApp.showToast(data.message, true);
+    await VoiceMail.speak(data.message);
+  }
+}
+
+form.addEventListener('submit', function (e) {
+  e.preventDefault();
+  submitRegistration();
+});
+
+async function askAndListen(promptText, fieldId, opts) {
+  opts = opts || {};
+  statusEl.textContent = promptText;
+  await VoiceMail.speak(promptText);
+  try {
+    const transcript = await VoiceMail.listen({ timeoutMs: 9000 });
+    document.getElementById(fieldId).value = opts.transform ? opts.transform(transcript) : transcript;
+    statusEl.textContent = 'Heard: "' + transcript + '"';
+    await VoiceMail.speak('I heard: ' + transcript);
+    return transcript;
+  } catch (err) {
+    statusEl.textContent = err.message;
+    await VoiceMail.speak(err.message + " You can also type it in manually.");
+    return null;
+  }
+}
+
+document.getElementById('start-voice-reg').addEventListener('click', async function () {
+  if (!VoiceMail.isRecognitionSupported()) {
+    statusEl.textContent = "Voice input isn't supported in this browser. Please use the form fields below, or switch to Chrome or Edge.";
+    await VoiceMail.speak(statusEl.textContent);
+    return;
+  }
+  await VoiceMail.speak("Let's create your account. I'll ask a few questions.");
+  await askAndListen("What is your full name?", "name");
+  await askAndListen("What is your email address? Please spell it slowly if needed.", "email",
+    { transform: (t) => t.replace(/\s+at\s+/gi, "@").replace(/\s+dot\s+/gi, ".").replace(/\s+/g, "") });
+  statusEl.textContent = "For security, please type your account password instead of speaking it.";
+  await VoiceMail.speak("For security, please type your account password into the password field instead of speaking it.");
+  document.getElementById('password').focus();
+  await askAndListen("Now say a voice password phrase you'll use to log in quickly next time.", "voice_password");
+  statusEl.textContent = "Review your answers, then press Create Account.";
+  await VoiceMail.speak("Please review your answers, then press Create Account.");
+});
+</script>
+{% endblock %}

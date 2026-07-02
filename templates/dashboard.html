@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Dashboard</h1>
+  {% if not mail_linked %}
+  <div class="banner banner-warning" role="alert">
+    You haven't linked a mail account yet. <a href="{{ url_for('email_bp.mail_settings') }}">Link your email in Settings</a>
+    to send and read real email.
+  </div>
+  {% endif %}
+
+  <button id="mic-btn" class="mic-button" type="button" aria-label="Start listening for a voice command">
+    🎙️ Say a Command
+  </button>
+  <p id="voice-status" class="voice-status" aria-live="polite">Say "Help" at any time to hear all commands.</p>
+
+  <div class="menu-grid" role="navigation" aria-label="Dashboard options">
+    <a class="menu-item" href="{{ url_for('email_bp.compose') }}">📝<br>Compose Email</a>
+    <a class="menu-item" href="{{ url_for('email_bp.inbox') }}">📥<br>Inbox</a>
+    <a class="menu-item" href="{{ url_for('email_bp.drafts') }}">🗂️<br>Drafts</a>
+    <a class="menu-item" href="{{ url_for('email_bp.mail_settings') }}">⚙️<br>Mail Settings</a>
+    <a class="menu-item" href="{{ url_for('email_bp.activity_log') }}">📊<br>Activity Log</a>
+    <a class="menu-item" href="{{ url_for('auth.logout') }}">🚪<br>Logout</a>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const commands = {
+  "compose email": "{{ url_for('email_bp.compose') }}",
+  "compose": "{{ url_for('email_bp.compose') }}",
+  "open inbox": "{{ url_for('email_bp.inbox') }}",
+  "inbox": "{{ url_for('email_bp.inbox') }}",
+  "draft": "{{ url_for('email_bp.drafts') }}",
+  "drafts": "{{ url_for('email_bp.drafts') }}",
+  "search email": "{{ url_for('email_bp.inbox') }}",
+  "settings": "{{ url_for('email_bp.mail_settings') }}",
+  "mail settings": "{{ url_for('email_bp.mail_settings') }}",
+  "activity log": "{{ url_for('email_bp.activity_log') }}",
+  "logout": "{{ url_for('auth.logout') }}",
+  "log out": "{{ url_for('auth.logout') }}",
+  "go back": "{{ url_for('dashboard') }}",
+};
+
+const helpText = "You can say: Compose Email, Open Inbox, Drafts, Search Email, Mail Settings, Activity Log, or Logout.";
+const statusEl = document.getElementById('voice-status');
+
+window.addEventListener('DOMContentLoaded', function () {
+  VoiceMail.speak("Dashboard. " + helpText);
+});
+
+document.getElementById('mic-btn').addEventListener('click', async function () {
+  if (!VoiceMail.isRecognitionSupported()) {
+    statusEl.textContent = "Voice commands aren't supported in this browser. Please use the menu below.";
+    await VoiceMail.speak(statusEl.textContent);
+    return;
+  }
+  statusEl.textContent = "Listening...";
+  try {
+    const transcript = (await VoiceMail.listen({ timeoutMs: 8000 })).toLowerCase().trim();
+    statusEl.textContent = 'Heard: "' + transcript + '"';
+
+    if (transcript.includes("help")) {
+      await VoiceMail.speak(helpText);
+      return;
+    }
+    if (transcript.includes("stop")) {
+      VoiceMail.stopSpeaking();
+      return;
+    }
+    if (transcript.includes("repeat")) {
+      await VoiceMail.speak("Dashboard. " + helpText);
+      return;
+    }
+
+    let matched = null;
+    for (const key in commands) {
+      if (transcript.includes(key)) { matched = commands[key]; break; }
+    }
+    if (matched) {
+      await VoiceMail.speak("Opening " + transcript);
+      window.location.href = matched;
+    } else {
+      await VoiceMail.speak("I didn't recognize that command. " + helpText);
+    }
+  } catch (err) {
+    statusEl.textContent = err.message;
+    await VoiceMail.speak(err.message);
+  }
+});
+</script>
+{% endblock %}

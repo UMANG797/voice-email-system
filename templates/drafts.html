@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Drafts{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Drafts</h1>
+  {% if drafts|length == 0 %}
+    <p class="muted">You have no saved drafts.</p>
+  {% else %}
+    {% for d in drafts %}
+    <article class="email-item">
+      <div class="email-meta"><strong>To: {{ d['recipient'] }}</strong></div>
+      <div class="email-subject">{{ d['subject'] }}</div>
+      <p class="email-preview">{{ d['body'][:200] }}{% if d['body']|length > 200 %}…{% endif %}</p>
+      <button class="btn btn-ghost btn-small" onclick="deleteDraft({{ d['id'] }})">Delete</button>
+    </article>
+    {% endfor %}
+  {% endif %}
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+async function deleteDraft(id) {
+  const data = await VoiceMailApp.apiFetch(`/api/drafts/${id}/delete`, { method: "POST" });
+  VoiceMailApp.showToast(data.message, !data.ok);
+  if (data.ok) window.location.reload();
+}
+</script>
+{% endblock %}

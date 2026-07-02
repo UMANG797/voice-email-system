@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Compose{% endblock %}
+{% block content %}
+<section class="card form-card">
+  <h1>Compose Email</h1>
+  <button id="start-voice-compose" class="btn btn-primary btn-large" type="button">🎙️ Compose by Voice</button>
+  <p id="voice-status" class="voice-status" aria-live="polite"></p>
+
+  <form id="compose-form" novalidate>
+    <label for="to_email">Recipient Email</label>
+    <input type="email" id="to_email" name="to_email" required>
+
+    <label for="subject">Subject</label>
+    <input type="text" id="subject" name="subject" required>
+
+    <label for="body">Message</label>
+    <textarea id="body" name="body" rows="8" required></textarea>
+
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary btn-large">Send Email</button>
+      <button type="button" id="save-draft-btn" class="btn btn-secondary btn-large">Save as Draft</button>
+    </div>
+  </form>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const form = document.getElementById('compose-form');
+const statusEl = document.getElementById('voice-status');
+
+async function sendCompose(saveAsDraft) {
+  const payload = {
+    to_email: document.getElementById('to_email').value,
+    subject: document.getElementById('subject').value,
+    body: document.getElementById('body').value,
+    save_as_draft: !!saveAsDraft,
+  };
+  const data = await VoiceMailApp.apiFetch("{{ url_for('email_bp.compose') }}", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  VoiceMailApp.showToast(data.message, !data.ok);
+  await VoiceMail.speak(data.message);
+  if (data.ok && !saveAsDraft) {
+    setTimeout(() => window.location.href = "{{ url_for('dashboard') }}", 1200);
+  }
+}
+
+form.addEventListener('submit', function (e) {
+  e.preventDefault();
+  sendCompose(false);
+});
+document.getElementById('save-draft-btn').addEventListener('click', function () {
+  sendCompose(true);
+});
+
+async function askAndListen(promptText, fieldId) {
+  statusEl.textContent = promptText;
+  await VoiceMail.speak(promptText);
+  try {
+    const transcript = await VoiceMail.listen({ timeoutMs: 15000 });
+    document.getElementById(fieldId).value = transcript;
+    statusEl.textContent = 'Heard: "' + transcript + '"';
+    return transcript;
+  } catch (err) {
+    statusEl.textContent = err.message;
+    await VoiceMail.speak(err.message);
+    return null;
+  }
+}
+
+document.getElementById('start-voice-compose').addEventListener('click', async function () {
+  if (!VoiceMail.isRecognitionSupported()) {
+    statusEl.textContent = "Voice input isn't supported in this browser. Please use the form fields below.";
+    await VoiceMail.speak(statusEl.textContent);
+    return;
+  }
+
+  const to = await askAndListen(
+    "Who is the recipient? Please say their email, for example: john at example dot com.",
+    "to_email"
+  );
+  if (to) {
+    document.getElementById('to_email').value = to
+      .replace(/\s+at\s+/gi, "@").replace(/\s+dot\s+/gi, ".").replace(/\s+/g, "");
+  }
+
+  const subject = await askAndListen("What is the subject?", "subject");
+  const body = await askAndListen("Now say your message.", "body");
+
+  const readBack = `Here is your email. To: ${document.getElementById('to_email').value}. Subject: ${subject || ""}. Message: ${body || ""}. Do you want to send it? Say yes to send, or no to cancel.`;
+  statusEl.textContent = "Review your email below, then say yes or no.";
+  await VoiceMail.speak(readBack);
+
+  try {
+    const confirmation = (await VoiceMail.listen({ timeoutMs: 8000 })).toLowerCase();
+    if (confirmation.includes("yes")) {
+      await VoiceMail.speak("Sending your email now.");
+      await sendCompose(false);
+    } else {
+      await VoiceMail.speak("Okay, I did not send the email. You can edit it and press Send Email when ready.");
+    }
+  } catch (err) {
+    await VoiceMail.speak("I didn't catch a yes or no. Please review the email and press Send Email or Save as Draft manually.");
+  }
+});
+</script>
+{% endblock %}
