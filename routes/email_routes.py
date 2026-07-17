@@ -14,15 +14,15 @@ from utils.mail_utils import send_email, fetch_inbox, delete_email, MailError
 email_bp = Blueprint("email_bp", __name__)
 
 
-  def login_required(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        if "user_id" not in session:
-            if request.is_json or request.path.startswith("/api/"):
-                return jsonify({"ok": False, "message": "Please log in first."}), 401
+def login_required(f):
+   @wraps(f)
+   def wrapper(*args, **kwargs):
+       if "user_id" not in session:
+           if request.is_json or request.path.startswith("/api/"):
+               return jsonify({"ok": False, "message": "Please log in first."}), 401
             return redirect(url_for("auth.login"))
         return f(*args, **kwargs)
-    return wrapper
+  return wrapper
 
 
   def _get_mail_credentials(user_id):
