@@ -101,13 +101,13 @@ def compose():
         log_activity(session["user_id"], "draft_saved", subject)
         return jsonify({"ok": True, "message": "Saved as a draft."})
 
-    mail_email, app_password = _get_mail_credentials(session["user_id"])
+  mail_email, app_password = _get_mail_credentials(session["user_id"])
 
-if not mail_email or not app_password:
-    return jsonify({
-        "ok": False,
-        "message": "Please reconnect your Gmail account from Mail Settings."
-    }), 400
+    if not mail_email or not app_password:
+        return jsonify({
+            "ok": False,
+            "message": "Please reconnect your Gmail account from Mail Settings."
+        }), 400
 
     try:
         send_email(mail_email, app_password, to_email, subject, body)
