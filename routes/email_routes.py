@@ -1,8 +1,3 @@
-"""
-Email feature routes: compose/send, inbox, search, delete, drafts,
-and linking a real mail account (Gmail address + App Password) for SMTP/IMAP.
-"""
-
 from flask import Blueprint, request, session, redirect, url_for, render_template, jsonify
 from functools import wraps
 from datetime import datetime
@@ -11,21 +6,18 @@ from utils.validators import is_valid_email, clean_text
 from utils.crypto_utils import encrypt_value, decrypt_value
 from utils.mail_utils import send_email, fetch_inbox, delete_email, MailError
 
-email_bp = Blueprint("email_bp", __name__)
-
+email_bp=Blueprint("email_bp",__name__)
 
 def login_required(f):
-   @wraps(f)
-   def wrapper(*args, **kwargs):
-       if "user_id" not in session:
-           if request.is_json or request.path.startswith("/api/"):
-               return jsonify({"ok": False, "message": "Please log in first."}), 401
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if "user_id" not in session:
+            if request.is_json or request.path.startswith("/api/"):
+                return jsonify({"ok":False,"message":"Please log in first."}),401
             return redirect(url_for("auth.login"))
         return f(*args, **kwargs)
-  return wrapper
-
-
-  def _get_mail_credentials(user_id):
+    return wrapper
+def _get_mail_credentials(user_id):
     conn = get_db()
     user = conn.execute(
         "SELECT mail_login_email, mail_app_password_encrypted FROM users WHERE id = ?", (user_id,)
@@ -43,9 +35,8 @@ def login_required(f):
     return user["mail_login_email"], mail_password
 
 
-  @email_bp.route("/mail-settings", methods=["GET", "POST"])
-  @login_required
-  def mail_settings():
+@email_bp.route("/mail-settings", methods=["GET", "POST"])@login_required
+def mail_settings():
     if request.method == "GET":
         conn = get_db()
         user = conn.execute("SELECT mail_login_email FROM users WHERE id = ?", (session["user_id"],)).fetchone()
@@ -71,9 +62,9 @@ def login_required(f):
     return jsonify({"ok": True, "message": "Mail account linked successfully. You can now send and read email."})
 
 
-  @email_bp.route("/compose", methods=["GET", "POST"])
-  @login_required
-  def compose():
+@email_bp.route("/compose", methods=["GET", "POST"])
+@login_required
+def compose():
     if request.method == "GET":
         return render_template("compose.html")
 
@@ -118,15 +109,15 @@ def login_required(f):
     return jsonify({"ok": True, "message": "Your email was sent successfully."})
 
 
-  @email_bp.route("/inbox")
-  @login_required
-  def inbox():
+@email_bp.route("/inbox")
+@login_required
+def inbox():
     return render_template("inbox.html")
 
 
-  @email_bp.route("/api/inbox")
-  @login_required
-  def api_inbox():
+@email_bp.route("/api/inbox")
+@login_required
+def api_inbox():
     mail_email, app_password = _get_mail_credentials(session["user_id"])
     if not mail_email:
         return jsonify({"ok": False, "message": "Please link your email account in Settings first."}), 400
@@ -145,9 +136,9 @@ def login_required(f):
     return jsonify({"ok": True, "messages": messages, "unread_count": len(messages)})
 
 
-  @email_bp.route("/api/inbox/delete", methods=["POST"])
-  @login_required
-  def api_delete_email():
+@email_bp.route("/api/inbox/delete", methods=["POST"])
+@login_required
+def api_delete_email():
     data = request.get_json(silent=True) or {}
     msg_id = data.get("id")
     if not msg_id:
@@ -166,9 +157,9 @@ def login_required(f):
     return jsonify({"ok": True, "message": "Email deleted."})
 
 
-  @email_bp.route("/drafts")
-  @login_required
-  def drafts():
+@email_bp.route("/drafts")
+@login_required
+def drafts():
     conn = get_db()
     rows = conn.execute(
         "SELECT * FROM drafts WHERE user_id = ? ORDER BY created_at DESC", (session["user_id"],)
@@ -177,9 +168,9 @@ def login_required(f):
     return render_template("drafts.html", drafts=rows)
 
 
-  @email_bp.route("/api/drafts/<int:draft_id>/delete", methods=["POST"])
-  @login_required
-  def delete_draft(draft_id):
+@email_bp.route("/api/drafts/<int:draft_id>/delete", methods=["POST"])
+@login_required
+def delete_draft(draft_id):
     conn = get_db()
     conn.execute("DELETE FROM drafts WHERE id = ? AND user_id = ?", (draft_id, session["user_id"]))
     conn.commit()
@@ -187,9 +178,9 @@ def login_required(f):
     return jsonify({"ok": True, "message": "Draft deleted."})
 
 
-  @email_bp.route("/activity-log")
-  @login_required
-  def activity_log():
+@email_bp.route("/activity-log")
+@login_required
+def activity_log():
     conn = get_db()
     rows = conn.execute(
         "SELECT * FROM activity_logs WHERE user_id = ? ORDER BY timestamp DESC LIMIT 100",
