@@ -31,14 +31,16 @@ def _get_mail_credentials(user_id):
         "SELECT mail_login_email, mail_app_password_encrypted FROM users WHERE id = ?", (user_id,)
     ).fetchone()
     conn.close()
+
     if not user or not user["mail_login_email"] or not user["mail_app_password_encrypted"]:
         return None, None
+
     mail_password = decrypt_value(user["mail_app_password_encrypted"])
 
-if not mail_password:
-    return user["mail_login_email"], None
+    if not mail_password:
+        return user["mail_login_email"], None
 
-return user["mail_login_email"], mail_password
+    return user["mail_login_email"], mail_password
 
 
 @email_bp.route("/mail-settings", methods=["GET", "POST"])
