@@ -33,7 +33,12 @@ def _get_mail_credentials(user_id):
     conn.close()
     if not user or not user["mail_login_email"] or not user["mail_app_password_encrypted"]:
         return None, None
-    return user["mail_login_email"], decrypt_value(user["mail_app_password_encrypted"])
+    mail_password = decrypt_value(user["mail_app_password_encrypted"])
+
+if not mail_password:
+    return user["mail_login_email"], None
+
+return user["mail_login_email"], mail_password
 
 
 @email_bp.route("/mail-settings", methods=["GET", "POST"])
@@ -95,8 +100,12 @@ def compose():
         return jsonify({"ok": True, "message": "Saved as a draft."})
 
     mail_email, app_password = _get_mail_credentials(session["user_id"])
-    if not mail_email:
-        return jsonify({"ok": False, "message": "Please link your email account in Settings before sending mail."}), 400
+
+if not mail_email or not app_password:
+    return jsonify({
+        "ok": False,
+        "message": "Please reconnect your Gmail account from Mail Settings."
+    }), 400
 
     try:
         send_email(mail_email, app_password, to_email, subject, body)
