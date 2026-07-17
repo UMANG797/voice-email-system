@@ -101,7 +101,7 @@ def compose():
         log_activity(session["user_id"], "draft_saved", subject)
         return jsonify({"ok": True, "message": "Saved as a draft."})
 
-  mail_email, app_password = _get_mail_credentials(session["user_id"])
+    mail_email, app_password = _get_mail_credentials(session["user_id"])
 
     if not mail_email or not app_password:
         return jsonify({
@@ -120,7 +120,7 @@ def compose():
 
 @email_bp.route("/inbox")
 @login_required
-def inbox():
+  def inbox():
     return render_template("inbox.html")
 
 
