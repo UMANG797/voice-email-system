@@ -51,6 +51,38 @@ def mail_settings():
     if not is_valid_email(mail_email) or not app_password:
         return jsonify({"ok": False, "message": "Please provide a valid email and app password."}), 400
 
+    # Test connections before saving
+    from config import Config
+    import smtplib
+    import imaplib
+
+    # 1. Test SMTP login
+    try:
+        with smtplib.SMTP(Config.SMTP_HOST, Config.SMTP_PORT, timeout=10) as server:
+            server.starttls()
+            server.login(mail_email, app_password)
+    except smtplib.SMTPAuthenticationError as e:
+        detail = e.smtp_msg.decode(errors="ignore") if hasattr(e, "smtp_msg") and isinstance(e.smtp_msg, bytes) else str(e)
+        return jsonify({
+            "ok": False,
+            "message": f"SMTP Login failed. Please verify your email and app password. Details: {detail}"
+        }), 400
+    except Exception as e:
+        return jsonify({"ok": False, "message": f"Failed to connect to SMTP server: {str(e)}"}), 400
+
+    # 2. Test IMAP login
+    try:
+        imap = imaplib.IMAP4_SSL(Config.IMAP_HOST, Config.IMAP_PORT, timeout=10)
+        imap.login(mail_email, app_password)
+        imap.logout()
+    except imaplib.IMAP4.error as e:
+        return jsonify({
+            "ok": False,
+            "message": f"IMAP Login failed: {str(e)}. Please ensure IMAP is enabled in your Gmail settings."
+        }), 400
+    except Exception as e:
+        return jsonify({"ok": False, "message": f"Failed to connect to IMAP server: {str(e)}"}), 400
+
     encrypted = encrypt_value(app_password)
     conn = get_db()
     conn.execute(

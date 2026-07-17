@@ -39,11 +39,14 @@ def send_email(sender_email, app_password, to_email, subject, body, attachments=
             server.login(sender_email, app_password)
             server.sendmail(sender_email, to_email, msg.as_string())
 
-    except smtplib.SMTPAuthenticationError:
-        raise MailError("Your email login was rejected by the mail server. Please check your app password.")
-    except smtplib.SMTPRecipientsRefused:
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"SMTP Authentication Failure: {e}")
+        raise MailError(f"Your email login was rejected by the mail server. Please check your app password. (Detail: {e})")
+    except smtplib.SMTPRecipientsRefused as e:
+        print(f"SMTP Recipients Refused: {e}")
         raise MailError("The recipient's email address was refused by the mail server.")
-    except (smtplib.SMTPException, OSError, TimeoutError):
+    except (smtplib.SMTPException, OSError, TimeoutError) as e:
+        print(f"SMTP Error: {e}")
         raise MailError("Could not send the email. Please check your internet connection and try again.")
 
 
@@ -113,9 +116,11 @@ def fetch_inbox(user_email, app_password, folder="INBOX", limit=15, search_crite
         imap.logout()
         return messages
 
-    except imaplib.IMAP4.error:
-        raise MailError("Your email login was rejected by the mail server. Please check your app password.")
-    except (OSError, TimeoutError):
+    except imaplib.IMAP4.error as e:
+        print(f"IMAP Authentication Failure: {e}")
+        raise MailError(f"Your email login was rejected by the mail server. Please check your app password. (Detail: {e})")
+    except (OSError, TimeoutError) as e:
+        print(f"IMAP Connection Error: {e}")
         raise MailError("Could not connect to the mail server. Please check your internet connection.")
 
 
@@ -127,7 +132,9 @@ def delete_email(user_email, app_password, msg_id, folder="INBOX"):
         imap.store(msg_id.encode() if isinstance(msg_id, str) else msg_id, "+FLAGS", "\\Deleted")
         imap.expunge()
         imap.logout()
-    except imaplib.IMAP4.error:
-        raise MailError("Your email login was rejected by the mail server.")
-    except (OSError, TimeoutError):
+    except imaplib.IMAP4.error as e:
+        print(f"IMAP Delete Failure: {e}")
+        raise MailError(f"Your email login was rejected by the mail server. (Detail: {e})")
+    except (OSError, TimeoutError) as e:
+        print(f"IMAP Delete Connection Error: {e}")
         raise MailError("Could not connect to the mail server. Please check your internet connection.")
