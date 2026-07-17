@@ -16,7 +16,10 @@ def _get_fernet():
             "Generate one with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
         )
     return Fernet(key.encode())
-
+    
+def encrypt_value(value: str) -> str:
+    f = _get_fernet()
+    return f.encrypt(value.encode()).decode()
 
 def decrypt_value(encrypted_text: str) -> str:
     f = _get_fernet()
@@ -26,6 +29,4 @@ def decrypt_value(encrypted_text: str) -> str:
         return None
 
 
-def decrypt_value(encrypted_text: str) -> str:
-    f = _get_fernet()
-    return f.decrypt(encrypted_text.encode()).decode()
+
