@@ -4,6 +4,7 @@ Never store SMTP/IMAP passwords in plain text.
 """
 
 from cryptography.fernet import Fernet
+from cryptography.fernet import InvalidToken
 from config import Config
 
 
@@ -17,9 +18,12 @@ def _get_fernet():
     return Fernet(key.encode())
 
 
-def encrypt_value(plain_text: str) -> str:
+def decrypt_value(encrypted_text: str) -> str:
     f = _get_fernet()
-    return f.encrypt(plain_text.encode()).decode()
+    try:
+        return f.decrypt(encrypted_text.encode()).decode()
+    except InvalidToken:
+        return None
 
 
 def decrypt_value(encrypted_text: str) -> str:
