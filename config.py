@@ -25,6 +25,7 @@ class Config:
     # Encryption key used to encrypt each user's stored app-password (IMAP/SMTP)
     # Generate one with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
     FERNET_KEY = os.environ.get("FERNET_KEY")
+    RESEND_API_KEY = os.environment.get("RESEND_API_KEY")
 
     # Default mail servers (Gmail). Users can override per-account if needed.
     SMTP_HOST = os.environ.get("SMTP_HOST", "smtp.gmail.com")
