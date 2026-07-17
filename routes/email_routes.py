@@ -35,7 +35,8 @@ def _get_mail_credentials(user_id):
     return user["mail_login_email"], mail_password
 
 
-@email_bp.route("/mail-settings", methods=["GET", "POST"])@login_required
+@email_bp.route("/mail-settings", methods=["GET", "POST"])
+@login_required
 def mail_settings():
     if request.method == "GET":
         conn = get_db()
